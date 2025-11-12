@@ -90,6 +90,13 @@
             margin: 10px;
             display: none;
         }
+        .download-link {
+            color: #ff2a6d;
+            text-decoration: none;
+            font-size: 16px;
+            margin: 10px;
+            display: none;
+        }
         .close {
             position: absolute;
             top: 5px;
@@ -106,6 +113,7 @@
         <button class="open-app-btn" id="openAppBtn">进入恋与深空</button>
         <div class="browser-tips">点击按钮直接打开游戏</div>
         <div class="success-message" id="successMessage">正在为你打开恋与深空...</div>
+        <a href="https://lysk.papegames.cn" class="download-link" id="downloadLink" target="_blank">如无法自动打开，点击这里前往官方下载页面</a>
     </div>
 
 <script>
@@ -240,6 +248,7 @@ function tryOpenLoveAndDeepspace() {
     const container = document.getElementById('openAppContainer');
     const openBtn = document.getElementById('openAppBtn');
     const successMessage = document.getElementById('successMessage');
+    const downloadLink = document.getElementById('downloadLink');
     
     container.style.display = 'flex';
     
@@ -248,12 +257,17 @@ function tryOpenLoveAndDeepspace() {
         openBtn.textContent = '正在启动游戏...';
         openBtn.disabled = true;
         
-        // 尝试多个可能的URL Scheme
+        // 记录开始时间
+        const startTime = Date.now();
+        
+        // 尝试多个可能的URL Scheme（包括官方和常见的）
         const schemes = [
             'loveanddeepspace://',
-            'lnbs://',
+            'papegames://',
+            'lysk://',
             'lysks://',
-            'com.papegames.loveanddeepspace://'
+            'com.papegames.loveanddeepspace://',
+            'intent://lysk.papegames.cn#Intent;package=com.papegames.loveanddeepspace;end;'
         ];
         
         let opened = false;
@@ -263,26 +277,44 @@ function tryOpenLoveAndDeepspace() {
             setTimeout(() => {
                 if (!opened) {
                     console.log('尝试打开:', scheme);
+                    // 创建iframe方式，兼容性更好
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = scheme;
+                    document.body.appendChild(iframe);
+                    
+                    // 同时尝试直接跳转
                     window.location.href = scheme;
                     opened = true;
                 }
-            }, index * 200);
+            }, index * 300);
         });
         
-        // 如果3秒后还在当前页面，提示下载
-        setTimeout(() => {
-            if (!document.hidden) {
-                successMessage.textContent = '未检测到游戏，正在跳转下载页面...';
-                setTimeout(() => {
-                    // 根据设备类型跳转到对应的应用商店
-                    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                        window.open('https://apps.apple.com/app/id6473669006', '_blank');
-                    } else {
-                        window.open('https://play.google.com/store/apps/details?id=com.papegames.loveanddeepspace', '_blank');
-                    }
-                }, 1500);
+        // 改进的检测逻辑
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+            checkCount++;
+            // 如果页面失去焦点或隐藏，说明可能成功打开了应用
+            if (document.hidden || document.webkitHidden || document.msHidden || document.mozHidden) {
+                console.log('页面失去焦点，可能成功打开应用');
+                clearInterval(checkInterval);
+                return;
             }
-        }, 3000);
+            
+            // 检查时间（最多检查5秒）
+            if (checkCount >= 10 || (Date.now() - startTime) > 5000) {
+                clearInterval(checkInterval);
+                successMessage.textContent = '无法自动打开游戏';
+                downloadLink.style.display = 'block';
+                openBtn.textContent = '重新尝试';
+                openBtn.disabled = false;
+                
+                // 重新绑定点击事件
+                openBtn.onclick = function() {
+                    window.open('https://lysk.papegames.cn', '_blank');
+                };
+            }
+        }, 500);
     };
 }
 
